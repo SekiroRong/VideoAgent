@@ -1,9 +1,10 @@
 from typing import Literal
 from langgraph.graph import StateGraph, START, END
 # from agents import story_writer, character_extractor, character_portraits_generator, scene_writer, scene2video
-from agents import develop_story, VideoGenState
+from agents import develop_story, extract_characters, generate_character_images, VideoGenState
 from langchain.messages import AnyMessage
 import operator
+import os
 
 
 
@@ -12,18 +13,18 @@ agent_builder = StateGraph(VideoGenState)
 
 # Add nodes
 agent_builder.add_node("develop_story", develop_story)
-# agent_builder.add_node("character_extractor", character_extractor)
-# agent_builder.add_node("character_portraits_generator", character_portraits_generator)
+agent_builder.add_node("extract_characters", extract_characters)
+agent_builder.add_node("generate_character_images", generate_character_images)
 # agent_builder.add_node("scene_writer", scene_writer)
 # agent_builder.add_node("scene2video", scene2video)
 
 # Add edges to connect nodes
 agent_builder.add_edge(START, "develop_story")
-# agent_builder.add_edge("story_writer", "character_extractor")
-# agent_builder.add_edge("character_extractor", "character_portraits_generator")
+agent_builder.add_edge("develop_story", "extract_characters")
+agent_builder.add_edge("extract_characters", "generate_character_images")
 # agent_builder.add_edge("character_portraits_generator", "scene_writer")
 # agent_builder.add_edge("scene_writer", "scene2video")
-agent_builder.add_edge("develop_story", END)
+agent_builder.add_edge("generate_character_images", END)
 
 # Compile the agent
 agent = agent_builder.compile()
@@ -40,7 +41,10 @@ user_requirement = \
     """
 For adults, do not exceed 3 scenes. Each scene should be no more than 5 shots.
 """
+style = "Realistic, warm feel"
 
+cache_dir = "working_dir"
+os.makedirs(cache_dir, exist_ok=True)
 from langchain.messages import HumanMessage
-messages = agent.invoke({"user_idea": [HumanMessage(content=user_idea)], "user_requirement": [HumanMessage(content=user_requirement)]})
+messages = agent.invoke({"user_idea": [HumanMessage(content=user_idea)], "user_requirement": [HumanMessage(content=user_requirement)], "style": [HumanMessage(content=style)],"cache_dir": cache_dir})
 print(messages)

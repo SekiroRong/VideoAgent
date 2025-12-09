@@ -1,15 +1,67 @@
 import json
 import os
-from utils import text2image
+from .utils import text2image
+from .state import VideoGenState
 
+
+prompt_template_front = \
+"""
+Generate a full-body, front-view portrait of character {identifier} based on the following description, with a pure white background. The character should be centered in the image, occupying most of the frame. Gazing straight ahead. Standing with arms relaxed at sides. Natural expression.
+Features: {features}
+Style: {style}
+"""
+
+prompt_template_side = \
+"""
+Generate a full-body, side-view portrait of character {identifier} based on the provided front-view portrait, with a pure white background. The character should be centered in the image, occupying most of the frame. Facing left. Standing with arms relaxed at sides.
+"""
+
+prompt_template_back = \
+"""
+Generate a full-body, back-view portrait of character {identifier} based on the provided front-view portrait, with a pure white background. The character should be centered in the image, occupying most of the frame. No facial features should be visible.
+"""
 
 
 def generate_character_images(state: VideoGenState) -> VideoGenState:
-    # 1. 获取保存根路径（优先使用state中的配置，无则用默认值）
-    save_root = state.get("image_save_root", "./output/characters")
+    image_save_root = os.path.join(state['cache_dir'], "character_portraits")
+    os.makedirs(image_save_root, exist_ok=True)
 
-    char_image_path = os.path.join(save_root, state["character_name"] + '.png')
-    text2image(state["character_desc"], char_image_path)
-    state["character_images"] = char_image_path
-    print(f"生成的人物图像：{char_image_path}\n")
+    state["character_images"] = []
+    for character in state["character_desc"]:
+        character_dir = os.path.join(image_save_root, f"{character.idx}_{character.identifier_in_scene}")
+        os.makedirs(character_dir, exist_ok=True)
+
+        front_portrait_path = os.path.join(character_dir, "front.png")
+        side_portrait_path = os.path.join(character_dir, "side.png")
+        back_portrait_path = os.path.join(character_dir, "back.png")
+        if os.path.exists(front_portrait_path):
+            pass
+        else:
+            features = "(static) " + character.static_features + "; (dynamic) " + character.dynamic_features
+            prompt = prompt_template_front.format(
+                identifier=character.identifier_in_scene,
+                features=features,
+                style=state["style"],
+            )
+            text2image(prompt, front_portrait_path)
+
+        state["character_images"].append(
+            {
+            character.identifier_in_scene: {
+                "front": {
+                    "path": front_portrait_path,
+                    "description": f"A front view portrait of {character.identifier_in_scene}.",
+                },
+                # "side": {
+                #     "path": side_portrait_path,
+                #     "description": f"A side view portrait of {character.identifier_in_scene}.",
+                # },
+                # "back": {
+                #     "path": back_portrait_path,
+                #     "description": f"A back view portrait of {character.identifier_in_scene}.",
+                # },
+            }
+        }
+        )
+
     return state

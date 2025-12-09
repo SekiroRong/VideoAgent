@@ -79,11 +79,18 @@ human_prompt_template_develop_story = \
 
 
 def develop_story(state: VideoGenState) -> VideoGenState:
-    messages = [
-        ("system", system_prompt_template_develop_story),
-        ("human", human_prompt_template_develop_story.format(idea=state["user_idea"], user_requirement=state["user_requirement"])),
-    ]
-    response = model.invoke(messages)
-    state["story"] = response.content
+    save_path = os.path.join(state['cache_dir'], "story.txt")
+    if os.path.exists(save_path):
+        with open(save_path, "r", encoding="utf-8") as f:
+            state["story"] = f.read()
+    else:
+        messages = [
+            ("system", system_prompt_template_develop_story),
+            ("human", human_prompt_template_develop_story.format(idea=state["user_idea"], user_requirement=state["user_requirement"])),
+        ]
+        response = model.invoke(messages)
+        state["story"] = response.content
+        with open(save_path, "w", encoding="utf-8") as f:
+            f.write(state["story"])
     return state
 
