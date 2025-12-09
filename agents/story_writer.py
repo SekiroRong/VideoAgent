@@ -10,6 +10,7 @@ if not os.getenv("DASHSCOPE_API_BASE"):
 
 from langchain_qwq import ChatQwen
 from langchain.tools import tool
+from .state import VideoGenState
 
 model = ChatQwen(
     model="qwen-flash",
@@ -80,9 +81,9 @@ human_prompt_template_develop_story = \
 def develop_story(state: VideoGenState) -> VideoGenState:
     messages = [
         ("system", system_prompt_template_develop_story),
-        ("human", human_prompt_template_develop_story.format(idea=idea, user_requirement=user_requirement)),
+        ("human", human_prompt_template_develop_story.format(idea=state["user_idea"], user_requirement=state["user_requirement"])),
     ]
-    response = await model.ainvoke(messages)
+    response = model.invoke(messages)
     state["story"] = response.content
     return state
 
