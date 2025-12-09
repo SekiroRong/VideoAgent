@@ -1,6 +1,6 @@
 import json
 import os
-from .utils import text2image
+from .utils import text2image, image2image
 from .state import VideoGenState
 
 
@@ -45,6 +45,28 @@ def generate_character_images(state: VideoGenState) -> VideoGenState:
             )
             text2image(prompt, front_portrait_path)
 
+        if os.path.exists(side_portrait_path):
+            pass
+        else:
+            features = "(static) " + character.static_features + "; (dynamic) " + character.dynamic_features
+            prompt = prompt_template_side.format(
+                identifier=character.identifier_in_scene,
+                features=features,
+                style=state["style"],
+            )
+            image2image(prompt, front_portrait_path, side_portrait_path)
+
+        if os.path.exists(back_portrait_path):
+            pass
+        else:
+            features = "(static) " + character.static_features + "; (dynamic) " + character.dynamic_features
+            prompt = prompt_template_back.format(
+                identifier=character.identifier_in_scene,
+                features=features,
+                style=state["style"],
+            )
+            image2image(prompt, front_portrait_path, back_portrait_path)
+
         state["character_images"].append(
             {
             character.identifier_in_scene: {
@@ -52,14 +74,14 @@ def generate_character_images(state: VideoGenState) -> VideoGenState:
                     "path": front_portrait_path,
                     "description": f"A front view portrait of {character.identifier_in_scene}.",
                 },
-                # "side": {
-                #     "path": side_portrait_path,
-                #     "description": f"A side view portrait of {character.identifier_in_scene}.",
-                # },
-                # "back": {
-                #     "path": back_portrait_path,
-                #     "description": f"A back view portrait of {character.identifier_in_scene}.",
-                # },
+                "side": {
+                    "path": side_portrait_path,
+                    "description": f"A side view portrait of {character.identifier_in_scene}.",
+                },
+                "back": {
+                    "path": back_portrait_path,
+                    "description": f"A back view portrait of {character.identifier_in_scene}.",
+                },
             }
         }
         )

@@ -5,10 +5,26 @@ from http import HTTPStatus
 from dashscope import MultiModalConversation
 from dashscope import VideoSynthesis
 import mimetypes
+import base64
 import requests
 
 # 以下为北京地域url，若使用新加坡地域的模型，需将url替换为：https://dashscope-intl.aliyuncs.com/api/v1
 dashscope.base_http_api_url = 'https://dashscope.aliyuncs.com/api/v1'
+
+# ---用于 Base64 编码 ---
+# 格式为 data:{mime_type};base64,{base64_data}
+def encode_file(file_path):
+    mime_type, _ = mimetypes.guess_type(file_path)
+    if not mime_type or not mime_type.startswith("image/"):
+        raise ValueError("不支持或无法识别的图像格式")
+
+    try:
+        with open(file_path, "rb") as image_file:
+            encoded_string = base64.b64encode(
+                image_file.read()).decode('utf-8')
+        return f"data:{mime_type};base64,{encoded_string}"
+    except IOError as e:
+        raise IOError(f"读取文件时出错: {file_path}, 错误: {str(e)}")
 
 # 新加坡和北京地域的API Key不同。获取API Key：https://help.aliyun.com/zh/model-studio/get-api-key
 # 若没有配置环境变量，请用百炼API Key将下行替换为：api_key="sk-xxx"
@@ -65,6 +81,63 @@ def text2image(prompt, save_dir):
         print(f"错误码：{response.code}")
         print(f"错误信息：{response.message}")
         print("请参考文档：https://help.aliyun.com/zh/model-studio/developer-reference/error-code")
+
+def image2image(prompt, image_path, save_dir):
+    image = encode_file(image_path)
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {"image": image},
+                {"text": prompt}
+            ]
+        }
+    ]
+    
+    # qwen-image-edit-plus支持输出1-6张图片，此处以2张为例
+    response = MultiModalConversation.call(
+        api_key=api_key,
+        model="qwen-image-edit-plus",
+        messages=messages,
+        stream=False,
+        n=1,
+        watermark=False,
+        negative_prompt=" ",
+        prompt_extend=True,
+        # 仅当输出图像数量n=1时支持设置size参数，否则会报错
+        # size="2048*1024",
+    )
+    
+    if response.status_code == 200:
+        response = json.dumps(response, ensure_ascii=False)
+        response_dict = json.loads(response)
+        print(response_dict)
+        image_url = response_dict["output"]["choices"][0]["message"]["content"][0]["image"]
+        print(image_url)
+        # 注意：添加超时和请求头，避免下载失败
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+        img_response = requests.get(
+            image_url,
+            headers=headers,
+            timeout=30,  # 超时时间30秒
+            stream=True  # 流式下载（适合大文件）
+        )
+        img_response.raise_for_status()  # 抛出HTTP错误（如404/500）
+
+        # 写入文件（二进制模式）
+        with open(save_dir, "wb") as f:
+            for chunk in img_response.iter_content(chunk_size=8192):  # 分块写入
+                f.write(chunk)
+
+        print(f"图片已保存到: {save_dir}")
+    else:
+        print(f"HTTP返回码：{response.status_code}")
+        print(f"错误码：{response.code}")
+        print(f"错误信息：{response.message}")
+        print("请参考文档：https://help.aliyun.com/zh/model-studio/developer-reference/error-code")
+
 
 # # --- 辅助函数：用于 Base64 编码 ---
 # # 格式为 data:{MIME_type};base64,{base64_data}
@@ -126,4 +199,5 @@ def text2image(prompt, save_dir):
 #               (rsp.status_code, rsp.code, rsp.message))
 
 if __name__ == "__main__":
-    text2image("爱因斯坦拳打皮卡丘", "output.png")
+    # text2image("爱因斯坦拳打皮卡丘", "output.png")
+    image2image("将背景换成火焰山", "output.png", "modify.png")

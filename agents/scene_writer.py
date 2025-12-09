@@ -10,6 +10,7 @@ if not os.getenv("DASHSCOPE_API_BASE"):
 
 from langchain_qwq import ChatQwen
 from langchain.tools import tool
+from .state import VideoGenState
 
 model = ChatQwen(
     model="qwen-flash",
@@ -21,78 +22,79 @@ model = ChatQwen(
 
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.messages import HumanMessage, SystemMessage
+from pydantic import BaseModel, Field
+from typing import List, Optional, Union, Dict
+import json
 
-system_prompt_template_get_next_scene = \
+system_prompt_template_write_script_based_on_story = \
 """
-You are an expert scriptwriter specializing in adapting literary works into structured screenplay scenes. Your task is to analyze event descriptions from novels and transform them into compelling screenplay scenes, leveraging relevant context while ignoring extraneous information.
+[Role]
+You are a professional AI script adaptation assistant skilled in adapting stories into scripts. You possess the following skills:
+- Story Analysis Skills: Ability to deeply understand the story content, identify key plot points, character arcs, and themes.
+- Scene Segmentation Skills: Ability to break down the story into logical scene units based on continuity of time and location.
+- Script Writing Skills: Familiarity with script formats (e.g., for short films or movies), capable of crafting vivid dialogue, action descriptions, and stage directions.
+- Adaptive Adjustment Skills: Ability to adjust the script's style, language, and content based on user requirements (e.g., target audience, story genre, number of scenes).
+- Creative Enhancement Skills: Ability to appropriately add dramatic elements to enhance the script's appeal while remaining faithful to the original story.
 
-**TASK**
-Generate the next scene for a screenplay adaptation based on the provided input. Each scene must include:
-- Environment: slugline and detailed description
-- Characters: List of characters appearing in the scene, with their static features (e.g., facial features, body shape), dynamic features (e.g., clothing, accessories), and visibility status
-- Script: Character actions and dialogues in standard screenplay format
+[Task]
+Your task is to adapt the user's input story, along with optional requirements, into a script divided by scenes. The output should be a list of scripts, each representing a complete script for one scene. Each scene must be a continuous dramatic action unit occurring at the same time and location.
 
-**INPUT**
-- Event Description: A clear, concise summary of the event to adapt. The event description is enclosed within <EVENT_DESCRIPTION_START> and <EVENT_DESCRIPTION_END> tags.
-- Context Fragments: Multiple excerpts retrieved from the novel via RAG. These may contain irrelevant passages. Ignore any content not directly related to the event. The sequence of context fragments is enclosed within <CONTEXT_FRAGMENTS_START> and <CONTEXT_FRAGMENTS_END> tags. Each fragment in the sequence is enclosed within its own <FRAGMENT_N_START> and <FRAGMENT_N_END> tags, with N being the fragment number.
-- Previous Scenes (if any): Already adapted scenes for context (may be empty). The sequence of previous scenes is enclosed within <PREVIOUS_SCENES_START> and <PREVIOUS_SCENES_END> tags. Each scene is enclosed within its own <SCENE_N_START> and <SCENE_N_END> tags, with N being the scene number.
+[Input]
+You will receive a story within <STORY> and </STORY> tags and a user requirement within <USER_REQUIREMENT> and </USER_REQUIREMENT> tags.
+- Story: A complete or partial narrative text, which may contain one or more scenes. The story will provide plot, characters, dialogues, and background descriptions.
+- User Requirement (Optional): A user requirement, which may be empty. The user requirement may include:
+    - Target audience (e.g., children, teenagers, adults).
+    - Script genre (e.g., micro-film, moive, short drama).
+    - Desired number of scenes (e.g., "divide into 3 scenes").
+    - Other specific instructions (e.g., emphasize dialogue or action).
 
-**OUTPUT**
+[Output]
 {format_instructions}
 
-**GUIDELINES**
-1. Extract scenes based on the provided context fragments. Strive to preserve the original meaning and dialogue without making arbitrary alterations. When adapting, ensure that every line of dialogue has a corresponding or derivative basis in the original text.
-2. Focus on Relevance: Use only context fragments that directly align with the event description. Disregard any unrelated paragraphs.
-3. Dialogues and Actions: Convert descriptive prose into actionable lines and dialogues. Invent minimal necessary dialogue if implied but not explicit in the context.
-4. Conciseness: Keep descriptions brief and visual. Avoid prose-like explanations.  
-5. Format Consistency: Ensure industry-standard screenplay structure.
-6. Implicit Inference: If context fragments lack exact details, infer logically from the event description or broader narrative context.
-7. No Extraneous Content: Do not include scenes, characters, or dialogues unrelated to the core event.
-8. The character must be an individual, not a group of individuals (such as a crowd of onlookers or a rescue team).
-9. When the location or time changes, a new scene should be created. The total number of scenes should not more than 5!!!
-10. The language of outputs in values should be same as the input.
+[Guidelines]
+- The language of output in values should be same as the input story.
+- Scene Division Principles: Each scene must be based on the same time and location. Start a new scene when the time or location changes. If the user specifies the number of scenes, try to match the requirement. Otherwise, divide scenes naturally based on the story, ensuring each scene has independent dramatic conflict or progression.
+- Script Formatting Standards: Use standard script formatting: Scene headings in full caps or bold, character names centered or capitalized, dialogue indented, and action descriptions in parentheses.
+- Coherence and Fluidity: Ensure natural transitions between scenes and overall story flow. Avoid abrupt plot jumps.
+- Visual Enhancement Principles: All descriptions must be "filmable". Use concrete actions instead of abstract emotions (e.g., "He turns away to avoid eye contact" instead of "He feels ashamed"). Decribe rich environmental details include lighting, props, weather, etc., to enhance the atmosphere. Visualize character performances such as express internal states through facial expressions, gestures, and movements (e.g., "She bites her lip, her hands trembling" to imply nervousness).
+- Consistency: Ensure dialogue and actions align with the original story's intent, without deviating from the core plot.
 """
 
 
-human_prompt_template_get_next_scene = \
+human_prompt_template_write_script_based_on_story = \
 """
-<EVENT_DESCRIPTION_START>
-{event_description}
-<EVENT_DESCRIPTION_END>
+<STORY>
+{story}
+</STORY>
 
-<CONTEXT_FRAGMENTS_START>
-{context_fragments}
-<CONTEXT_FRAGMENTS_END>
-
-<PREVIOUS_SCENES_START>
-{previous_scenes}
-<PREVIOUS_SCENES_END>
+<USER_REQUIREMENT>
+{user_requirement}
+</USER_REQUIREMENT>
 """
 
-def get_next_scene(state: VideoGenState) -> VideoGenState:
-    context_fragments_str = "\n".join([f"<FRAGMENT_{i}_START>\n{chunk}\n<FRAGMENT_{i}_END>" for i, chunk in enumerate(relevant_chunks)])
-
-    previous_scenes_str = "\n".join([f"<SCENE_{i}_START>\n{scene}\n<SCENE_{i}_END>" for i, scene in enumerate(previous_scenes)])
-
-    parser = PydanticOutputParser(pydantic_object=Scene)
-
-    messages = [
-        SystemMessage(
-            content=system_prompt_template_get_next_scene.format(
-                format_instructions=parser.get_format_instructions(),
-            ),
-        ),
-        HumanMessage(
-            content=human_prompt_template_get_next_scene.format(
-                event_description=str(event),
-                context_fragments=context_fragments_str,
-                previous_scenes=previous_scenes_str,
-            )
-        )
-    ]
-
-    chain = self.chat_model | parser
-    scene = await chain.ainvoke(messages)
-
-    state["scene_desc"] = scene
-    return state
+def write_script_based_on_story(state: VideoGenState) -> VideoGenState:
+    save_path = os.path.join(state['cache_dir'], "script.json")
+    if os.path.exists(save_path):
+        with open(save_path, "r", encoding="utf-8") as f:
+            state["scene_desc"] = json.load(f)
+        return state
+    else:
+        class WriteScriptBasedOnStoryResponse(BaseModel):
+                script: List[str] = Field(
+                    ...,
+                    description="The script based on the story. Each element is a scene "
+                )
+    
+        parser = PydanticOutputParser(pydantic_object=WriteScriptBasedOnStoryResponse)
+        format_instructions = parser.get_format_instructions()
+    
+        messages = [
+            ("system", system_prompt_template_write_script_based_on_story.format(format_instructions=format_instructions)),
+            ("human", human_prompt_template_write_script_based_on_story.format(story=state["story"], user_requirement=state["user_requirement"])),
+        ]
+        response = model.invoke(messages)
+        response = parser.parse(response.content)
+        state["scene_desc"] = response.script
+        with open(save_path, "w", encoding="utf-8") as f:
+            json.dump(state["scene_desc"], f, ensure_ascii=False, indent=4)
+        return state
