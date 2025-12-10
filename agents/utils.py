@@ -82,15 +82,13 @@ def text2image(prompt, save_dir):
         print(f"错误信息：{response.message}")
         print("请参考文档：https://help.aliyun.com/zh/model-studio/developer-reference/error-code")
 
-def image2image(prompt, image_path, save_dir):
-    image = encode_file(image_path)
+def image2image(prompt, image_paths, save_dir):
+    content = [{"image": encode_file(image_path)} for image_path in image_paths]
+    content.append({"text": prompt})
     messages = [
         {
             "role": "user",
-            "content": [
-                {"image": image},
-                {"text": prompt}
-            ]
+            "content": content
         }
     ]
     
@@ -139,65 +137,82 @@ def image2image(prompt, image_path, save_dir):
         print("请参考文档：https://help.aliyun.com/zh/model-studio/developer-reference/error-code")
 
 
-# # --- 辅助函数：用于 Base64 编码 ---
-# # 格式为 data:{MIME_type};base64,{base64_data}
-# def encode_file(file_path):
-#     mime_type, _ = mimetypes.guess_type(file_path)
-#     if not mime_type or not mime_type.startswith("image/"):
-#         raise ValueError("不支持或无法识别的图像格式")
-#     with open(file_path, "rb") as image_file:
-#         encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
-#     return f"data:{mime_type};base64,{encoded_string}"
+def sample_call_i2v(prompt, image_path, save_dir):
+    img_url = encode_file(image_path)
+    # 同步调用，直接返回结果
+    print('please wait...')
+    rsp = VideoSynthesis.call(api_key=api_key,
+                              model='wan2.2-i2v-flash',
+                              prompt=prompt,
+                              img_url=img_url)
+    print(rsp)
+    if rsp.status_code == HTTPStatus.OK:
+        print("video_url:", rsp.output.video_url)
+    else:
+        print('Failed, status_code: %s, code: %s, message: %s' %
+              (rsp.status_code, rsp.code, rsp.message))
 
-# """
-# 图像输入方式说明：
-# 以下提供了三种图片输入方式，三选一即可
+    # get the task information include the task status.
+    status = VideoSynthesis.fetch(rsp)
+    if status.status_code == HTTPStatus.OK:
+        print(status.output.task_status)  # check the task status
+    else:
+        print('Failed, status_code: %s, code: %s, message: %s' %
+              (status.status_code, status.code, status.message))
 
-# 1. 使用公网URL - 适合已有公开可访问的图片
-# 2. 使用本地文件 - 适合本地开发测试
-# 3. 使用Base64编码 - 适合私有图片或需要加密传输的场景
-# """
+    # wait the task complete, will call fetch interval, and check it's in finished status.
+    rsp = VideoSynthesis.wait(rsp)
+    print(rsp)
+    if rsp.status_code == HTTPStatus.OK:
+        print(rsp.output.video_url)
+    else:
+        print('Failed, status_code: %s, code: %s, message: %s' %
+              (rsp.status_code, rsp.code, rsp.message))
+    print(rsp.output.video_url)
+    download_video(
+        video_url=rsp.output.video_url,
+        save_path=save_dir  # 用task_id命名，避免重复
+    )
 
-# # 【方式一】使用公网可访问的图片URL
-# # 示例：使用一个公开的图片URL
-# img_url = "https://help-static-aliyun-doc.aliyuncs.com/file-manage-files/zh-CN/20250925/wpimhv/rap.png"
+# ========== 新增：下载视频到本地 ==========
+def download_video(video_url, save_path='./downloaded_video.mp4', chunk_size=1024*1024):
+    """
+    下载视频文件到本地
+    :param video_url: 视频远程URL
+    :param save_path: 本地保存路径（默认当前目录，文件名downloaded_video.mp4）
+    :param chunk_size: 分块下载大小（默认1MB，避免内存占用过大）
+    """
+    try:
+        # 发送GET请求（添加超时，避免无限等待）
+        response = requests.get(video_url, stream=True, timeout=30)
+        response.raise_for_status()  # 抛出HTTP错误（如404/500）
 
-# # 【方式二】使用本地文件（支持绝对路径和相对路径）
-# # 格式要求：file:// + 文件路径
-# # 示例（绝对路径）：
-# # img_url = "file://" + "/path/to/your/img.png"    # Linux/macOS
-# # img_url = "file://" + "C:/path/to/your/img.png"  # Windows
-# # 示例（相对路径）：
-# # img_url = "file://" + "./img.png"                # 相对当前执行文件的路径
+        # 获取文件总大小（可选，用于进度提示）
+        total_size = int(response.headers.get('content-length', 0))
+        downloaded_size = 0
 
-# # 【方式三】使用Base64编码的图片
-# # img_url = encode_file("./img.png")
+        # 写入文件（分块下载，适合大文件）
+        with open(save_path, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=chunk_size):
+                if chunk:  # 过滤空块
+                    f.write(chunk)
+                    downloaded_size += len(chunk)
+                    # 打印下载进度（可选）
+                    if total_size > 0:
+                        progress = (downloaded_size / total_size) * 100
+                        print(f"下载进度: {progress:.1f}% ({downloaded_size}/{total_size} bytes)", end='\r')
 
-# # 设置音频audio url
-# audio_url = "https://help-static-aliyun-doc.aliyuncs.com/file-manage-files/zh-CN/20250925/ozwpvi/rap.mp3"
+        print(f"\n视频已成功保存到: {os.path.abspath(save_path)}")
+        return save_path
 
-# def sample_call_i2v():
-#     # 同步调用，直接返回结果
-#     print('please wait...')
-#     rsp = VideoSynthesis.call(api_key=api_key,
-#                               model='wan2.5-i2v-preview',
-#                               prompt='一幅都市奇幻艺术的场景。一个充满动感的涂鸦艺术角色。一个由喷漆所画成的少年，正从一面混凝土墙上活过来。他一边用极快的语速演唱一首英文rap，一边摆着一个经典的、充满活力的说唱歌手姿势。场景设定在夜晚一个充满都市感的铁路桥下。灯光来自一盏孤零零的街灯，营造出电影般的氛围，充满高能量和惊人的细节。视频的音频部分完全由他的rap构成，没有其他对话或杂音。',
-#                               img_url=img_url,
-#                               audio_url=audio_url,
-#                               resolution="480P",
-#                               duration=10,
-#                               # audio=True, # 可选，因为模型默认开启自动配音
-#                               prompt_extend=True,
-#                               watermark=False,
-#                               negative_prompt="",
-#                               seed=12345)
-#     print(rsp)
-#     if rsp.status_code == HTTPStatus.OK:
-#         print("video_url:", rsp.output.video_url)
-#     else:
-#         print('Failed, status_code: %s, code: %s, message: %s' %
-#               (rsp.status_code, rsp.code, rsp.message))
+    except requests.exceptions.RequestException as e:
+        print(f"\n下载失败: {str(e)}")
+        # 清理未下载完成的文件
+        if os.path.exists(save_path):
+            os.remove(save_path)
+        return None
 
 if __name__ == "__main__":
     # text2image("爱因斯坦拳打皮卡丘", "output.png")
-    image2image("将背景换成火焰山", "output.png", "modify.png")
+    # image2image("将背景换成火焰山", "output.png", "modify.png")
+    sample_call_i2v("爱因斯坦拳打皮卡丘", "output.png", "modify.mp4")

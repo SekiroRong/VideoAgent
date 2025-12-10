@@ -26,7 +26,7 @@ def generate_character_images(state: VideoGenState) -> VideoGenState:
     image_save_root = os.path.join(state['cache_dir'], "character_portraits")
     os.makedirs(image_save_root, exist_ok=True)
 
-    state["character_images"] = []
+    state["character_images"] = {}
     for character in state["character_desc"]:
         character_dir = os.path.join(image_save_root, f"{character.idx}_{character.identifier_in_scene}")
         os.makedirs(character_dir, exist_ok=True)
@@ -54,7 +54,7 @@ def generate_character_images(state: VideoGenState) -> VideoGenState:
                 features=features,
                 style=state["style"],
             )
-            image2image(prompt, front_portrait_path, side_portrait_path)
+            image2image(prompt, [front_portrait_path], side_portrait_path)
 
         if os.path.exists(back_portrait_path):
             pass
@@ -65,11 +65,9 @@ def generate_character_images(state: VideoGenState) -> VideoGenState:
                 features=features,
                 style=state["style"],
             )
-            image2image(prompt, front_portrait_path, back_portrait_path)
+            image2image(prompt, [front_portrait_path], back_portrait_path)
 
-        state["character_images"].append(
-            {
-            character.identifier_in_scene: {
+        state["character_images"][character.identifier_in_scene] = {
                 "front": {
                     "path": front_portrait_path,
                     "description": f"A front view portrait of {character.identifier_in_scene}.",
@@ -83,7 +81,5 @@ def generate_character_images(state: VideoGenState) -> VideoGenState:
                     "description": f"A back view portrait of {character.identifier_in_scene}.",
                 },
             }
-        }
-        )
 
     return state
