@@ -137,14 +137,24 @@ def image2image(prompt, image_paths, save_dir):
         print("请参考文档：https://help.aliyun.com/zh/model-studio/developer-reference/error-code")
 
 
-def sample_call_i2v(prompt, image_path, save_dir):
-    img_url = encode_file(image_path)
+def sample_call_i2v(prompt, image_paths, save_dir):
     # 同步调用，直接返回结果
     print('please wait...')
-    rsp = VideoSynthesis.call(api_key=api_key,
-                              model='wan2.2-i2v-flash',
-                              prompt=prompt,
-                              img_url=img_url)
+    if len(image_paths) == 1:
+        img_url = encode_file(image_paths[0])
+        rsp = VideoSynthesis.call(api_key=api_key,
+                                  model='wan2.2-i2v-flash',
+                                  prompt=prompt,
+                                  img_url=img_url)
+    else:
+        assert len(image_paths) == 2:
+        img_url = encode_file(image_paths[0])
+        img2_url = encode_file(image_paths[1])
+        rsp = VideoSynthesis.call(api_key=api_key,
+                                  model='wan2.2-kf2v-flash',
+                                  prompt=prompt,
+                                  first_frame_url=img_url,
+                                  last_frame_url=img2_url,)
     print(rsp)
     if rsp.status_code == HTTPStatus.OK:
         print("video_url:", rsp.output.video_url)
@@ -152,22 +162,6 @@ def sample_call_i2v(prompt, image_path, save_dir):
         print('Failed, status_code: %s, code: %s, message: %s' %
               (rsp.status_code, rsp.code, rsp.message))
 
-    # get the task information include the task status.
-    status = VideoSynthesis.fetch(rsp)
-    if status.status_code == HTTPStatus.OK:
-        print(status.output.task_status)  # check the task status
-    else:
-        print('Failed, status_code: %s, code: %s, message: %s' %
-              (status.status_code, status.code, status.message))
-
-    # wait the task complete, will call fetch interval, and check it's in finished status.
-    rsp = VideoSynthesis.wait(rsp)
-    print(rsp)
-    if rsp.status_code == HTTPStatus.OK:
-        print(rsp.output.video_url)
-    else:
-        print('Failed, status_code: %s, code: %s, message: %s' %
-              (rsp.status_code, rsp.code, rsp.message))
     print(rsp.output.video_url)
     download_video(
         video_url=rsp.output.video_url,
@@ -215,4 +209,4 @@ def download_video(video_url, save_path='./downloaded_video.mp4', chunk_size=102
 if __name__ == "__main__":
     # text2image("爱因斯坦拳打皮卡丘", "output.png")
     # image2image("将背景换成火焰山", "output.png", "modify.png")
-    sample_call_i2v("爱因斯坦拳打皮卡丘", "output.png", "modify.mp4")
+    sample_call_i2v("爱因斯坦拳打皮卡丘", ["output.png"], "modify.mp4")
