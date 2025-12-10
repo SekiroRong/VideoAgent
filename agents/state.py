@@ -10,6 +10,8 @@ class VideoGenState(TypedDict):
     character_desc: List[Dict[str, Any]] # 人物描述（主要/次要）
     character_images: List[Dict[str, Any]]   # 生成的人物图像URL/路径
     story_board: List[Any]
+    shot_descriptions: List[Any]
+    camera_tree: List[Any]
     scene_desc: List[str] # 场景描述列表
     final_video: str              # 最终视频URL/路径
     cache_dir: str

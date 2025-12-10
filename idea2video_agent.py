@@ -1,7 +1,7 @@
 from typing import Literal
 from langgraph.graph import StateGraph, START, END
 # from agents import story_writer, character_extractor, character_portraits_generator, scene_writer, scene2video
-from agents import develop_story, extract_characters, generate_character_images, write_script_based_on_story, design_storyboard, VideoGenState
+from agents import develop_story, extract_characters, generate_character_images, write_script_based_on_story, design_storyboard, design_shot, construct_camera_tree, VideoGenState
 from langchain.messages import AnyMessage
 import operator
 import os
@@ -17,6 +17,8 @@ agent_builder.add_node("extract_characters", extract_characters)
 agent_builder.add_node("generate_character_images", generate_character_images)
 agent_builder.add_node("write_script_based_on_story", write_script_based_on_story)
 agent_builder.add_node("design_storyboard", design_storyboard)
+agent_builder.add_node("design_shot", design_shot)
+agent_builder.add_node("construct_camera_tree", construct_camera_tree)
 
 # Add edges to connect nodes
 agent_builder.add_edge(START, "develop_story")
@@ -24,7 +26,9 @@ agent_builder.add_edge("develop_story", "extract_characters")
 agent_builder.add_edge("extract_characters", "generate_character_images")
 agent_builder.add_edge("generate_character_images", "write_script_based_on_story")
 agent_builder.add_edge("write_script_based_on_story", "design_storyboard")
-agent_builder.add_edge("design_storyboard", END)
+agent_builder.add_edge("design_storyboard", "design_shot")
+agent_builder.add_edge("design_shot", "construct_camera_tree")
+agent_builder.add_edge("construct_camera_tree", END)
 
 # Compile the agent
 agent = agent_builder.compile()
