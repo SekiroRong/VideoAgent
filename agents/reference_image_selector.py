@@ -255,4 +255,39 @@ def select_reference_images_and_generate_prompt(state: VideoGenState) -> VideoGe
 
                 image2image(prompt, reference_image_paths, first_shot_ff_path)
 
+            for shot_idx in camera.active_shot_idxs[1:]:
+                shot_path = os.path.join(scene_root, f"shot_{shot_idx}", "first_frame.png")
+                if os.path.exists(shot_path):
+                    pass
+                else:
+                    available_image_path_and_text_pairs = []
+
+                    for character_idx in state["shot_descriptions"][idx][shot_idx].ff_vis_char_idxs:
+                        identifier_in_scene = state["character_desc"][character_idx].identifier_in_scene
+                        registry_item = state["character_images"][identifier_in_scene]
+                        for view, item in registry_item.items():
+                            available_image_path_and_text_pairs.append((item["path"], item["description"]))
+    
+                    ff_selector_output_path = os.path.join(scene_root, f"shot_{shot_idx}", "first_frame_selector_output.json")
+                    if os.path.exists(ff_selector_output_path):
+                        with open(ff_selector_output_path, 'r', encoding='utf-8') as f:
+                            ff_selector_output = json.load(f)
+                    else:
+                        ff_selector_output = _select_reference_images_and_generate_prompt(
+                            available_image_path_and_text_pairs=available_image_path_and_text_pairs,
+                            frame_description=state["shot_descriptions"][idx][shot_idx].ff_desc
+                        )
+                        with open(ff_selector_output_path, 'w', encoding='utf-8') as f:
+                            json.dump(ff_selector_output, f, ensure_ascii=False, indent=4)
+                if not os.path.exists(shot_path):
+                    reference_image_path_and_text_pairs, prompt = ff_selector_output["reference_image_path_and_text_pairs"], ff_selector_output["text_prompt"]
+                    prefix_prompt = ""
+                    for i, (image_path, text) in enumerate(reference_image_path_and_text_pairs):
+                        prefix_prompt += f"Image {i}: {text}\n"
+                    prompt = f"{prefix_prompt}\n{prompt}"
+                    reference_image_paths = [item[0] for item in reference_image_path_and_text_pairs]
+    
+                    image2image(prompt, reference_image_paths, shot_path)
+                    
+
     return state
