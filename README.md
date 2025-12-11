@@ -22,8 +22,7 @@ export DASHSCOPE_API_BASE='your api base'
 ```
 
 ### 🎬 Outputs
-<video src="assets/final_video" width="900" controls>你的浏览器不支持HTML5视频播放，请下载视频查看：
-  <a href="assets/final_video">demo.mp4</a></video>
+![output.gif](asset/final_video.gif)
 
 ```bash
 user_idea = \
