@@ -1,7 +1,7 @@
 # VideoAgent
 ### 🌟 Overview
 
-This repository is a complete refactoring of https://github.com/HKUDS/ViMax/ using LangGraph, enabling more robust, modular, and scalable agentic video generation workflows.
+This repository is a complete refactoring of [ViMax](https://github.com/HKUDS/ViMax/) using LangGraph, enabling more robust, modular, and scalable agentic video generation workflows.
 
 ViMax transforms your creative concepts into complete videos through an intelligent multi-agent system, handling scriptwriting, storyboarding, character design, and video generation—all end-to-end with enhanced LangGraph-powered agent coordination.
 
@@ -14,7 +14,7 @@ ViMax transforms your creative concepts into complete videos through an intellig
 - Parallel Processing: Efficient video generation pipeline with parallelizable tasks
 
 ### 🎯 Usage
-https://bailian.console.aliyun.com/?spm=5176.29597918.0.0.65a27b080z86SK&tab=api#/api
+How to acquire API:[bailian](https://bailian.console.aliyun.com/?spm=5176.29597918.0.0.65a27b080z86SK&tab=api#/api)
 
 ```bash
 export DASHSCOPE_API_KEY='your api key'
@@ -22,7 +22,8 @@ export DASHSCOPE_API_BASE='your api base'
 ```
 
 ### 🎬 Outputs
-<video src="assets/final_video" width="900"></video>
+<video src="assets/final_video" width="900" controls>你的浏览器不支持HTML5视频播放，请下载视频查看：
+  <a href="assets/final_video">demo.mp4</a></video>
 
 ```bash
 user_idea = \
