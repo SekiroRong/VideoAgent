@@ -215,79 +215,130 @@ def _select_reference_images_and_generate_prompt(available_image_path_and_text_p
         "text_prompt": response.text_prompt,
     }
 
-    
+def generate_frame_for_single_shot(image_output_path, selector_output_path, first_shot_ff_path_and_text_pair, frame_desc, visible_characters, character_portraits_registry):
+    if os.path.exists(image_output_path):
+        pass
+    else:
+        available_image_path_and_text_pairs = []
+        for visible_character in visible_characters:
+            identifier_in_scene = visible_character.identifier_in_scene
+            registry_item = character_portraits_registry[identifier_in_scene]
+            for view, item in registry_item.items():
+                available_image_path_and_text_pairs.append((item["path"], item["description"]))
+
+        if first_shot_ff_path_and_text_pair is not None:
+            available_image_path_and_text_pairs.append(first_shot_ff_path_and_text_pair)
+
+        if os.path.exists(selector_output_path):
+            with open(selector_output_path, 'r', encoding='utf-8') as f:
+                selector_output = json.load(f)
+        else:
+            selector_output = _select_reference_images_and_generate_prompt(
+                    available_image_path_and_text_pairs=available_image_path_and_text_pairs,
+                    frame_description=frame_desc
+                )
+            with open(selector_output_path, 'w', encoding='utf-8') as f:
+                json.dump(selector_output, f, ensure_ascii=False, indent=4)
+
+    if not os.path.exists(image_output_path):
+        reference_image_path_and_text_pairs, prompt = selector_output["reference_image_path_and_text_pairs"], selector_output["text_prompt"]
+        prefix_prompt = ""
+        for i, (image_path, text) in enumerate(reference_image_path_and_text_pairs):
+            prefix_prompt += f"Image {i}: {text}\n"
+        prompt = f"{prefix_prompt}\n{prompt}"
+        reference_image_paths = [item[0] for item in reference_image_path_and_text_pairs]
+
+        image2image(prompt, reference_image_paths, image_output_path)
+
+        
 def select_reference_images_and_generate_prompt(state: VideoGenState) -> VideoGenState:
     for idx, script in enumerate(state["scene_desc"]):
         scene_root = os.path.join(state['cache_dir'], f"scene_{idx}")
         for j, camera in enumerate(state["camera_tree"][idx]):
             first_shot_idx = camera.active_shot_idxs[0]
             first_shot_ff_path = os.path.join(scene_root, f"shot_{first_shot_idx}", "first_frame.png")
-            if os.path.exists(first_shot_ff_path):
-                pass
-            else:
-                available_image_path_and_text_pairs = []
+            ff_selector_output_path = os.path.join(scene_root, f"shot_{first_shot_idx}", "first_frame_selector_output.json")
+            generate_frame_for_single_shot(first_shot_ff_path, ff_selector_output_path, None, state["shot_descriptions"][idx][first_shot_idx].ff_desc, [state["character_desc"][idx] for idx in state["shot_descriptions"][idx][first_shot_idx].ff_vis_char_idxs], state["character_images"])
+            # if os.path.exists(first_shot_ff_path):
+            #     pass
+            # else:
+            #     available_image_path_and_text_pairs = []
 
-                for character_idx in state["shot_descriptions"][idx][first_shot_idx].ff_vis_char_idxs:
-                    identifier_in_scene = state["character_desc"][character_idx].identifier_in_scene
-                    registry_item = state["character_images"][identifier_in_scene]
-                    for view, item in registry_item.items():
-                        available_image_path_and_text_pairs.append((item["path"], item["description"]))
+            #     for character_idx in state["shot_descriptions"][idx][first_shot_idx].ff_vis_char_idxs:
+            #         identifier_in_scene = state["character_desc"][character_idx].identifier_in_scene
+            #         registry_item = state["character_images"][identifier_in_scene]
+            #         for view, item in registry_item.items():
+            #             available_image_path_and_text_pairs.append((item["path"], item["description"]))
+            #     if first_shot_ff_path_and_text_pair is not None:
+            #         available_image_path_and_text_pairs.append(first_shot_ff_path_and_text_pair)
 
-                ff_selector_output_path = os.path.join(scene_root, f"shot_{first_shot_idx}", "first_frame_selector_output.json")
-                if os.path.exists(ff_selector_output_path):
-                    with open(ff_selector_output_path, 'r', encoding='utf-8') as f:
-                        ff_selector_output = json.load(f)
-                else:
-                    ff_selector_output = _select_reference_images_and_generate_prompt(
-                        available_image_path_and_text_pairs=available_image_path_and_text_pairs,
-                        frame_description=state["shot_descriptions"][idx][first_shot_idx].ff_desc
-                    )
-                    with open(ff_selector_output_path, 'w', encoding='utf-8') as f:
-                        json.dump(ff_selector_output, f, ensure_ascii=False, indent=4)
+            #     ff_selector_output_path = os.path.join(scene_root, f"shot_{first_shot_idx}", "first_frame_selector_output.json")
+            #     if os.path.exists(ff_selector_output_path):
+            #         with open(ff_selector_output_path, 'r', encoding='utf-8') as f:
+            #             ff_selector_output = json.load(f)
+            #     else:
+            #         ff_selector_output = _select_reference_images_and_generate_prompt(
+            #             available_image_path_and_text_pairs=available_image_path_and_text_pairs,
+            #             frame_description=state["shot_descriptions"][idx][first_shot_idx].ff_desc
+            #         )
+            #         with open(ff_selector_output_path, 'w', encoding='utf-8') as f:
+            #             json.dump(ff_selector_output, f, ensure_ascii=False, indent=4)
 
-            if not os.path.exists(first_shot_ff_path):
-                reference_image_path_and_text_pairs, prompt = ff_selector_output["reference_image_path_and_text_pairs"], ff_selector_output["text_prompt"]
-                prefix_prompt = ""
-                for i, (image_path, text) in enumerate(reference_image_path_and_text_pairs):
-                    prefix_prompt += f"Image {i}: {text}\n"
-                prompt = f"{prefix_prompt}\n{prompt}"
-                reference_image_paths = [item[0] for item in reference_image_path_and_text_pairs]
+            # if not os.path.exists(first_shot_ff_path):
+            #     reference_image_path_and_text_pairs, prompt = ff_selector_output["reference_image_path_and_text_pairs"], ff_selector_output["text_prompt"]
+            #     prefix_prompt = ""
+            #     for i, (image_path, text) in enumerate(reference_image_path_and_text_pairs):
+            #         prefix_prompt += f"Image {i}: {text}\n"
+            #     prompt = f"{prefix_prompt}\n{prompt}"
+            #     reference_image_paths = [item[0] for item in reference_image_path_and_text_pairs]
 
-                image2image(prompt, reference_image_paths, first_shot_ff_path)
+            #     image2image(prompt, reference_image_paths, first_shot_ff_path)
+
+            if state["shot_descriptions"][idx][first_shot_idx].variation_type in ["medium", "large"]:
+                last_shot_ff_path = os.path.join(scene_root, f"shot_{first_shot_idx}", "last_frame.png")
+                lf_selector_output_path = os.path.join(scene_root, f"shot_{first_shot_idx}", "last_frame_selector_output.json")
+                generate_frame_for_single_shot(last_shot_ff_path, lf_selector_output_path, None, state["shot_descriptions"][idx][first_shot_idx].lf_desc, [state["character_desc"][idx] for idx in state["shot_descriptions"][idx][first_shot_idx].lf_vis_char_idxs], state["character_images"])
 
             for shot_idx in camera.active_shot_idxs[1:]:
                 shot_path = os.path.join(scene_root, f"shot_{shot_idx}", "first_frame.png")
-                if os.path.exists(shot_path):
-                    pass
-                else:
-                    available_image_path_and_text_pairs = []
+                ff_selector_output_path = os.path.join(scene_root, f"shot_{shot_idx}", "first_frame_selector_output.json")
+                generate_frame_for_single_shot(shot_path, ff_selector_output_path, (first_shot_ff_path, state["shot_descriptions"][idx][first_shot_idx].ff_desc), state["shot_descriptions"][idx][shot_idx].ff_desc, [state["character_desc"][idx] for idx in state["shot_descriptions"][idx][shot_idx].ff_vis_char_idxs], state["character_images"])
+                if state["shot_descriptions"][idx][shot_idx].variation_type in ["medium", "large"]:
+                    last_shot_path = os.path.join(scene_root, f"shot_{shot_idx}", "last_frame.png")
+                    lf_selector_output_path = os.path.join(scene_root, f"shot_{shot_idx}", "last_frame_selector_output.json")
+                    generate_frame_for_single_shot(last_shot_path, lf_selector_output_path, (shot_path, state["shot_descriptions"][idx][shot_idx].ff_desc), state["shot_descriptions"][idx][shot_idx].lf_desc, [state["character_desc"][idx] for idx in state["shot_descriptions"][idx][shot_idx].lf_vis_char_idxs], state["character_images"])
+                    
+                # if os.path.exists(shot_path):
+                #     pass
+                # else:
+                #     available_image_path_and_text_pairs = []
 
-                    for character_idx in state["shot_descriptions"][idx][shot_idx].ff_vis_char_idxs:
-                        identifier_in_scene = state["character_desc"][character_idx].identifier_in_scene
-                        registry_item = state["character_images"][identifier_in_scene]
-                        for view, item in registry_item.items():
-                            available_image_path_and_text_pairs.append((item["path"], item["description"]))
+                #     for character_idx in state["shot_descriptions"][idx][shot_idx].ff_vis_char_idxs:
+                #         identifier_in_scene = state["character_desc"][character_idx].identifier_in_scene
+                #         registry_item = state["character_images"][identifier_in_scene]
+                #         for view, item in registry_item.items():
+                #             available_image_path_and_text_pairs.append((item["path"], item["description"]))
     
-                    ff_selector_output_path = os.path.join(scene_root, f"shot_{shot_idx}", "first_frame_selector_output.json")
-                    if os.path.exists(ff_selector_output_path):
-                        with open(ff_selector_output_path, 'r', encoding='utf-8') as f:
-                            ff_selector_output = json.load(f)
-                    else:
-                        ff_selector_output = _select_reference_images_and_generate_prompt(
-                            available_image_path_and_text_pairs=available_image_path_and_text_pairs,
-                            frame_description=state["shot_descriptions"][idx][shot_idx].ff_desc
-                        )
-                        with open(ff_selector_output_path, 'w', encoding='utf-8') as f:
-                            json.dump(ff_selector_output, f, ensure_ascii=False, indent=4)
-                if not os.path.exists(shot_path):
-                    reference_image_path_and_text_pairs, prompt = ff_selector_output["reference_image_path_and_text_pairs"], ff_selector_output["text_prompt"]
-                    prefix_prompt = ""
-                    for i, (image_path, text) in enumerate(reference_image_path_and_text_pairs):
-                        prefix_prompt += f"Image {i}: {text}\n"
-                    prompt = f"{prefix_prompt}\n{prompt}"
-                    reference_image_paths = [item[0] for item in reference_image_path_and_text_pairs]
+                #     ff_selector_output_path = os.path.join(scene_root, f"shot_{shot_idx}", "first_frame_selector_output.json")
+                #     if os.path.exists(ff_selector_output_path):
+                #         with open(ff_selector_output_path, 'r', encoding='utf-8') as f:
+                #             ff_selector_output = json.load(f)
+                #     else:
+                #         ff_selector_output = _select_reference_images_and_generate_prompt(
+                #             available_image_path_and_text_pairs=available_image_path_and_text_pairs,
+                #             frame_description=state["shot_descriptions"][idx][shot_idx].ff_desc
+                #         )
+                #         with open(ff_selector_output_path, 'w', encoding='utf-8') as f:
+                #             json.dump(ff_selector_output, f, ensure_ascii=False, indent=4)
+                # if not os.path.exists(shot_path):
+                #     reference_image_path_and_text_pairs, prompt = ff_selector_output["reference_image_path_and_text_pairs"], ff_selector_output["text_prompt"]
+                #     prefix_prompt = ""
+                #     for i, (image_path, text) in enumerate(reference_image_path_and_text_pairs):
+                #         prefix_prompt += f"Image {i}: {text}\n"
+                #     prompt = f"{prefix_prompt}\n{prompt}"
+                #     reference_image_paths = [item[0] for item in reference_image_path_and_text_pairs]
     
-                    image2image(prompt, reference_image_paths, shot_path)
+                #     image2image(prompt, reference_image_paths, shot_path)
                     
 
     return state

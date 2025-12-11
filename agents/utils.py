@@ -109,7 +109,6 @@ def image2image(prompt, image_paths, save_dir):
     if response.status_code == 200:
         response = json.dumps(response, ensure_ascii=False)
         response_dict = json.loads(response)
-        print(response_dict)
         image_url = response_dict["output"]["choices"][0]["message"]["content"][0]["image"]
         print(image_url)
         # 注意：添加超时和请求头，避免下载失败
@@ -147,7 +146,7 @@ def sample_call_i2v(prompt, image_paths, save_dir):
                                   prompt=prompt,
                                   img_url=img_url)
     else:
-        assert len(image_paths) == 2:
+        assert len(image_paths) == 2
         img_url = encode_file(image_paths[0])
         img2_url = encode_file(image_paths[1])
         rsp = VideoSynthesis.call(api_key=api_key,
