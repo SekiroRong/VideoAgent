@@ -19,6 +19,7 @@ def generate_single_video(state: VideoGenState) -> VideoGenState:
                 if os.path.exists(last_frame_path):
                     frame_paths.append(last_frame_path)
                 prompt=shot_description.motion_desc + "\n" + shot_description.audio_desc
+                sample_call_i2v(prompt, frame_paths, video_path)
                 logging.info(f"☑️ Generated video for shot {shot_description.idx}, saved to {video_path}.")
 
     return state

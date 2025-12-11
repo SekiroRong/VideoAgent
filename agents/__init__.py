@@ -7,6 +7,7 @@ from .shot_writer import design_shot
 from .camera_manager import construct_camera_tree
 from .reference_image_selector import select_reference_images_and_generate_prompt
 from .video_generator import generate_single_video
+from .video_merger import merge_final_video
 from .state import VideoGenState
 
 __all__ = [
@@ -19,5 +20,6 @@ __all__ = [
     "construct_camera_tree",
     "select_reference_images_and_generate_prompt",
     "generate_single_video",
+    "merge_final_video",
     "VideoGenState",
 ]
