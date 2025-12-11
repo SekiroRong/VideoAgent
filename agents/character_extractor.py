@@ -1,5 +1,6 @@
 import getpass
 import os
+import logging
 
 if not os.getenv("DASHSCOPE_API_KEY"):
     print('Please set your API_KEY')
@@ -120,6 +121,7 @@ def extract_characters(state: VideoGenState) -> VideoGenState:
         characters = [CharacterInScene.model_validate(
                 character) for character in characters]
         state["character_desc"] = characters
+        logging.info(f"🚀 Loaded {len(characters)} characters from existing file.")
     else:
         parser = PydanticOutputParser(pydantic_object=ExtractCharactersResponse)
         
@@ -137,4 +139,5 @@ def extract_characters(state: VideoGenState) -> VideoGenState:
             json.dump([character.model_dump()
                       for character in characters], f, ensure_ascii=False, indent=4)
         state["character_desc"] = characters
+        logging.info(f"✅ Extracted {len(characters)} characters from story and saved to {save_path}.")
     return state

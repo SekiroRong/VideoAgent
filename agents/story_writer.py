@@ -1,5 +1,6 @@
 import getpass
 import os
+import logging
 
 if not os.getenv("DASHSCOPE_API_KEY"):
     print('Please set your API_KEY')
@@ -83,6 +84,7 @@ def develop_story(state: VideoGenState) -> VideoGenState:
     if os.path.exists(save_path):
         with open(save_path, "r", encoding="utf-8") as f:
             state["story"] = f.read()
+        logging.info(f"🚀 Loaded story from existing file.")
     else:
         messages = [
             ("system", system_prompt_template_develop_story),
@@ -92,5 +94,6 @@ def develop_story(state: VideoGenState) -> VideoGenState:
         state["story"] = response.content
         with open(save_path, "w", encoding="utf-8") as f:
             f.write(state["story"])
+        logging.info(f"✅ Developed story and saved to {save_path}.")
     return state
 

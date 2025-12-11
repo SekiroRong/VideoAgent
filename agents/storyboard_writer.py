@@ -1,5 +1,6 @@
 import getpass
 import os
+import logging
 
 if not os.getenv("DASHSCOPE_API_KEY"):
     print('Please set your API_KEY')
@@ -102,6 +103,7 @@ def design_storyboard(state: VideoGenState) -> VideoGenState:
                 storyboard = json.load(f)
             storyboard = [ShotBriefDescription.model_validate(shot) for shot in storyboard]
             state["story_board"].append(storyboard)
+            logging.info(f"🚀 Loaded {len(storyboard)} shot brief descriptions from existing file.")
         else:
             script_str = script.strip()
             characters_str = "\n".join([f"Character {index}: {char}" for index, char in enumerate(state["character_desc"])])
@@ -121,5 +123,6 @@ def design_storyboard(state: VideoGenState) -> VideoGenState:
             with open(save_path, 'w', encoding='utf-8') as f:
                 json.dump([shot.model_dump() for shot in storyboard], f, ensure_ascii=False, indent=4)
             state["story_board"].append(storyboard)
+            logging.info(f"✅ Designed storyboard and saved to {save_path}.")
 
     return state

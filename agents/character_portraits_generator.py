@@ -1,5 +1,6 @@
 import json
 import os
+import logging
 from .utils import text2image, image2image
 from .state import VideoGenState
 
@@ -81,5 +82,6 @@ def generate_character_images(state: VideoGenState) -> VideoGenState:
                     "description": f"A back view portrait of {character.identifier_in_scene}.",
                 },
             }
+        logging.info(f"☑️ Completed character portrait generation for {character.identifier_in_scene}.")
 
     return state

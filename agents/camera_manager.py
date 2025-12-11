@@ -1,5 +1,6 @@
 import getpass
 import os
+import logging
 
 if not os.getenv("DASHSCOPE_API_KEY"):
     print('Please set your API_KEY')
@@ -130,6 +131,7 @@ def construct_camera_tree(state: VideoGenState) -> VideoGenState:
                 camera_tree = json.load(f)
             camera_tree = [Camera.model_validate(camera) for camera in camera_tree]
             state["camera_tree"].append(camera_tree)
+            logging.info(f"🚀 Loaded {len(camera_tree)} cameras from existing file.")
         else:
             cameras: List[Camera] = []
             
@@ -166,5 +168,6 @@ def construct_camera_tree(state: VideoGenState) -> VideoGenState:
                 json.dump([camera.model_dump() for camera in cameras], f, ensure_ascii=False, indent=4)
 
             state["camera_tree"].append(cameras)
+            logging.info(f"✅ Constructed camera tree and saved to {save_path}.")
 
     return state

@@ -1,5 +1,6 @@
 import getpass
 import os
+import logging
 
 if not os.getenv("DASHSCOPE_API_KEY"):
     print('Please set your API_KEY')
@@ -149,6 +150,7 @@ def design_shot(state: VideoGenState) -> VideoGenState:
                 with open(shot_description_path, 'r', encoding='utf-8') as f:
                     shot_description = ShotDescription.model_validate(json.load(f))
                 shot_descriptions.append(shot_description)
+                logging.info(f"🚀 Loaded shot {shot_brief_description.idx} description from existing file.")
             else:
                 visual_desc = shot_brief_description.visual_desc.strip()
                 characters_str = "\n".join([f"{char.identifier_in_scene}: (static) {char.static_features}; (dynamic) {char.dynamic_features}" for char in state["character_desc"]])
@@ -176,6 +178,7 @@ def design_shot(state: VideoGenState) -> VideoGenState:
                 with open(shot_description_path, 'w', encoding='utf-8') as f:
                     json.dump(shot_description.model_dump(), f, ensure_ascii=False, indent=4)
                 shot_descriptions.append(shot_description)
+                logging.info(f"✅ Decomposed visual description for shot {shot_brief_description.idx} and saved to {shot_description_path}.")
         state["shot_descriptions"].append(shot_descriptions)
 
     return state

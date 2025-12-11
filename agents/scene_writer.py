@@ -1,5 +1,6 @@
 import getpass
 import os
+import logging
 
 if not os.getenv("DASHSCOPE_API_KEY"):
     print('Please set your API_KEY')
@@ -77,6 +78,7 @@ def write_script_based_on_story(state: VideoGenState) -> VideoGenState:
     if os.path.exists(save_path):
         with open(save_path, "r", encoding="utf-8") as f:
             state["scene_desc"] = json.load(f)
+        logging.info(f"🚀 Loaded script from existing file.")
         return state
     else:
         class WriteScriptBasedOnStoryResponse(BaseModel):
@@ -97,4 +99,5 @@ def write_script_based_on_story(state: VideoGenState) -> VideoGenState:
         state["scene_desc"] = response.script
         with open(save_path, "w", encoding="utf-8") as f:
             json.dump(state["scene_desc"], f, ensure_ascii=False, indent=4)
+        logging.info(f"✅ Written script based on story and saved to {save_path}.")
         return state

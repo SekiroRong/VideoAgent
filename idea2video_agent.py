@@ -6,6 +6,8 @@ from agents import select_reference_images_and_generate_prompt, generate_single_
 from langchain.messages import AnyMessage
 import operator
 import os
+import logging
+logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 
 
