@@ -22,6 +22,10 @@ export DASHSCOPE_API_KEY='your api key'
 export DASHSCOPE_API_BASE='your api base'
 ```
 
+```bash
+python idea2video_agent.py
+```
+
 ### 🎬 Outputs
 
 ![output.gif](assets/final_video.gif)
