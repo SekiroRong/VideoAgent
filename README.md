@@ -14,6 +14,7 @@ ViMax transforms your creative concepts into complete videos through an intellig
 - Parallel Processing: Efficient video generation pipeline with parallelizable tasks
 
 ### 🎯 Usage
+
 How to acquire API:[bailian](https://bailian.console.aliyun.com/?spm=5176.29597918.0.0.65a27b080z86SK&tab=api#/api)
 
 ```bash
@@ -22,7 +23,8 @@ export DASHSCOPE_API_BASE='your api base'
 ```
 
 ### 🎬 Outputs
-![output.gif](asset/final_video.gif)
+
+![output.gif](assets/final_video.gif)
 
 ```bash
 user_idea = \
