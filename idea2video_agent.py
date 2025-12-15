@@ -1,5 +1,6 @@
 from typing import Literal
 from collections import defaultdict
+import uuid
 from langgraph.graph import StateGraph, START, END
 # from agents import story_writer, character_extractor, character_portraits_generator, scene_writer, scene2video
 from agents import develop_story, extract_characters, generate_character_images, write_script_based_on_story, design_storyboard, design_shot, construct_camera_tree, VideoGenState
@@ -15,7 +16,9 @@ from langgraph.checkpoint.memory import MemorySaver
 
 def approval_node(state: VideoGenState):
     # Pause execution; payload shows up under result["__interrupt__"]
-    (is_approved, reason) = interrupt("Do you want to proceed with this action?")
+    (is_approved, reason) = interrupt({
+        "story": state["story"],
+    })
 
     # Route based on the response
     if is_approved:
@@ -43,7 +46,6 @@ agent_builder.add_node("approval_node", approval_node)
 
 # Add edges to connect nodes
 agent_builder.add_edge(START, "develop_story")
-# agent_builder.add_edge("develop_story", "approval_node")
 agent_builder.add_conditional_edges("develop_story", approval_node, {True: "extract_characters", False: "develop_story"})
 # agent_builder.add_edge("develop_story", "extract_characters")
 agent_builder.add_edge("extract_characters", "generate_character_images")
@@ -78,10 +80,11 @@ cache_dir = "working_dir"
 os.makedirs(cache_dir, exist_ok=True)
 from langchain.messages import HumanMessage
 
-config = {"configurable": {"thread_id": "approval-123"}}
+config = {"configurable": {"thread_id": uuid.uuid4().hex}}
 resumed = agent.invoke({"user_idea": user_idea, "user_requirement": user_requirement, "style": style,"cache_dir": cache_dir, "need_regen": defaultdict(lambda: [False, ""])}, config=config,)
 # 命令行接收用户输入（处理输入合法性）
 while "__interrupt__" in resumed.keys():
+    print(resumed["__interrupt__"])
     user_input = input("Do you want to proceed with this action? (y/n)：").strip().lower()
     if user_input in ["y", "n"]:
         is_approved = (user_input == "y")
