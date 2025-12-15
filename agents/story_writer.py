@@ -78,7 +78,7 @@ human_prompt_template_develop_story = \
 </USER_REQUIREMENT>
 """
 
-
+from collections import defaultdict
 def develop_story(state: VideoGenState) -> VideoGenState:
     save_path = os.path.join(state['cache_dir'], "story.txt")
     if os.path.exists(save_path):
@@ -95,5 +95,13 @@ def develop_story(state: VideoGenState) -> VideoGenState:
         with open(save_path, "w", encoding="utf-8") as f:
             f.write(state["story"])
         logging.info(f"✅ Developed story and saved to {save_path}.")
+
+    if not isinstance(state["need_regen"], defaultdict):
+        state["need_regen"] = defaultdict(lambda: [False, ""], state["need_regen"])
+    if state["need_regen"]["develop_story"][0]:
+        logging.info(f"Regenerate")
+        print(state["need_regen"]["develop_story"][1])
+        state["need_regen"]["develop_story"] = False
+        
     return state
 

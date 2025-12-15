@@ -1,4 +1,5 @@
 from typing import Literal
+from collections import defaultdict
 from langgraph.graph import StateGraph, START, END
 # from agents import story_writer, character_extractor, character_portraits_generator, scene_writer, scene2video
 from agents import develop_story, extract_characters, generate_character_images, write_script_based_on_story, design_storyboard, design_shot, construct_camera_tree, VideoGenState
@@ -9,6 +10,19 @@ import os
 import logging
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 
+from langgraph.types import interrupt, Command
+from langgraph.checkpoint.memory import MemorySaver
+
+def approval_node(state: VideoGenState):
+    # Pause execution; payload shows up under result["__interrupt__"]
+    (is_approved, reason) = interrupt("Do you want to proceed with this action?")
+
+    # Route based on the response
+    if is_approved:
+        return True  # Runs after the resume payload is provided
+    else:
+        state["need_regen"]["develop_story"] = [True, reason]
+        return False
 
 
 # Build workflow
@@ -25,10 +39,13 @@ agent_builder.add_node("construct_camera_tree", construct_camera_tree)
 agent_builder.add_node("select_reference_images_and_generate_prompt", select_reference_images_and_generate_prompt)
 agent_builder.add_node("generate_single_video", generate_single_video)
 agent_builder.add_node("merge_final_video", merge_final_video)
+agent_builder.add_node("approval_node", approval_node)
 
 # Add edges to connect nodes
 agent_builder.add_edge(START, "develop_story")
-agent_builder.add_edge("develop_story", "extract_characters")
+# agent_builder.add_edge("develop_story", "approval_node")
+agent_builder.add_conditional_edges("develop_story", approval_node, {True: "extract_characters", False: "develop_story"})
+# agent_builder.add_edge("develop_story", "extract_characters")
 agent_builder.add_edge("extract_characters", "generate_character_images")
 agent_builder.add_edge("generate_character_images", "write_script_based_on_story")
 agent_builder.add_edge("write_script_based_on_story", "design_storyboard")
@@ -40,7 +57,8 @@ agent_builder.add_edge("generate_single_video", "merge_final_video")
 agent_builder.add_edge("merge_final_video", END)
 
 # Compile the agent
-agent = agent_builder.compile()
+checkpointer = MemorySaver()
+agent = agent_builder.compile(checkpointer=checkpointer)
 
 user_idea = \
     """
@@ -59,6 +77,20 @@ style = "Realistic, warm feel"
 cache_dir = "working_dir"
 os.makedirs(cache_dir, exist_ok=True)
 from langchain.messages import HumanMessage
-messages = agent.invoke({"user_idea": user_idea, "user_requirement": user_requirement, "style": style,"cache_dir": cache_dir})
+
+config = {"configurable": {"thread_id": "approval-123"}}
+resumed = agent.invoke({"user_idea": user_idea, "user_requirement": user_requirement, "style": style,"cache_dir": cache_dir, "need_regen": defaultdict(lambda: [False, ""])}, config=config,)
+# 命令行接收用户输入（处理输入合法性）
+while "__interrupt__" in resumed.keys():
+    user_input = input("Do you want to proceed with this action? (y/n)：").strip().lower()
+    if user_input in ["y", "n"]:
+        is_approved = (user_input == "y")
+        if is_approved:
+            resumed = agent.invoke(Command(resume=(is_approved, "")), config=config)
+        else:
+            user_input = input("Why?：").strip().lower()
+            resumed = agent.invoke(Command(resume=(is_approved, user_input)), config=config)
+    else:
+        print("Invalid Input， y or n !")
 # messages = agent.invoke({"user_idea": [HumanMessage(content=user_idea)], "user_requirement": [HumanMessage(content=user_requirement)], "style": [HumanMessage(content=style)],"cache_dir": cache_dir})
 # print(messages)

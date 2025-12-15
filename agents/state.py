@@ -1,4 +1,4 @@
-from typing import TypedDict, List, Dict, Any
+from typing import TypedDict, List, Dict, Any, DefaultDict
 
 # 定义状态数据结构 - 贯穿整个工作流的核心数据
 class VideoGenState(TypedDict):
@@ -15,3 +15,4 @@ class VideoGenState(TypedDict):
     scene_desc: List[str] # 场景描述列表
     final_video: str              # 最终视频URL/路径
     cache_dir: str
+    need_regen: DefaultDict[str, bool]
